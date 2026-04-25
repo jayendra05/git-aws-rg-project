@@ -1,4 +1,4 @@
-name: Terraform CI/CD Pipeline
+name: Terraform Multi-Stage Pipeline
 
 on:
   push:
@@ -8,10 +8,10 @@ on:
 jobs:
 
   # =====================
-  # 🔹 VALIDATE STAGE
+  # 🔹 VALIDATE
   # =====================
   validate:
-    name: Validate Terraform
+    name: Terraform Validate
     runs-on: ubuntu-latest
 
     steps:
@@ -21,21 +21,22 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Init
-        run: terraform -chdir=envs/dev init
+      - name: Terraform Init
+        run: terraform init
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-south-1
 
-      - name: Format Check
-        run: terraform -chdir=envs/dev fmt -check
+      - name: Terraform Format Check
+        run: terraform fmt -check
 
-      - name: Validate
-        run: terraform -chdir=envs/dev validate
+      - name: Terraform Validate
+        run: terraform validate
 
 
   # =====================
-  # 🔹 PLAN STAGE
+  # 🔹 PLAN
   # =====================
   plan:
     name: Terraform Plan
@@ -49,22 +50,21 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Init
-        run: terraform -chdir=envs/dev init
+      - name: Terraform Init
+        run: terraform init
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-south-1
 
-      # 🔥 IMPORTANT: create plan file in root of working dir
-      - name: Create Plan
-        run: terraform -chdir=envs/dev plan -out=tfplan
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-south-1
 
-      # 🔍 Debug step (VERY IMPORTANT)
-      - name: Verify Plan File Exists
-        run: ls -lh
-
-      # 📦 Upload artifact
-      - name: Upload tfplan artifact
+      - name: Upload tfplan
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
@@ -72,7 +72,7 @@ jobs:
 
 
   # =====================
-  # 🔹 APPLY STAGE (WITH APPROVAL)
+  # 🔹 APPLY (WITH APPROVAL)
   # =====================
   apply:
     name: Terraform Apply
@@ -87,8 +87,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 📥 Download plan
-      - name: Download tfplan artifact
+      - name: Download tfplan
         uses: actions/download-artifact@v4
         with:
           name: tfplan
@@ -96,12 +95,12 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Init
-        run: terraform -chdir=envs/dev init
+      - name: Terraform Init
+        run: terraform init
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-south-1
 
-      # 🚀 Apply
-      - name: Apply Terraform
-        run: terraform -chdir=envs/dev apply -auto-approve tfplan
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
